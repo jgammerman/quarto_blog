@@ -1,0 +1,13 @@
+---
+title: "Sample Document"
+author: "Your Name"
+bibliography: references.bib
+---
+
+# Introduction
+
+The difference between the two is shown in @fig-rep-vs-gen-models, adapted from [@alammar2024].
+
+![Both representation and generative models can be used for classification, but they take different approaches](images/rep-models-vs-gen-models.jpg){#fig-rep-vs-gen-models}
+
+# References

@@ -1,0 +1,259 @@
+---
+title: "Text Classification with LLMs (part 1)"
+description: "TODO"
+author: "James Gammerman"
+date: "10/29/2024"
+draft: false
+format:
+  html:
+    code-fold: false
+jupyter: thellmbook
+execute:
+    cache: true
+    kernel: thellmbook
+    # python: /Users/yasha/miniconda3/envs/thellmbook/bin/python
+biblioraphy: references.bib
+---
+
+# Introduction
+
+Hello! And welcome to my first blog post.
+
+I'm currently reading the excellent [Hands-On Large Language Models](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/) book by Jay Alammar and Maarten Grootendorst. In order to get the most out of these kinds of books, I find it's best to take the code in them and then adapt it to new data. So in that spirit, I'm going to do my own version of Chapter 4 in the book, which is all about text classification.
+
+There are many different kinds of LLM. Broadly speaking we can put them into two categories:
+
+-   Representation LLMs
+-   Generative LLMs
+
+*Representation models* focus on understanding and representing the meaning of text. They work by converting input text into an embedding (i.e. a dense vector representation) that captures its semantic information. The generated embeddings are then fed into a separate classifier to predict a class label. So you can think of it as a two-step process: firstly encode the text into a meaningful representation, then classify it. These models are encoder-only, and notable examples include BERT, RoBERTa and sentence-BERT.
+
+*Generative models* focus on generating text. They are trained to predict the next word in a sequence, whicih is similar in style and content to the training data. They can be adapted for classification by providign them with a carefully designed prompt that guides them to generate a specific output corresponding to the class label. They are decoder-only or encoder-decoder models, and notable examples include the GPT family (including ChatGPT), Flan-T5 and the image generation model DALL-E.
+
+The difference between the two is shown in @fig:rep-vs-gen-models.
+
+![Both representation and generative models can be used for classification, but they take different approaches](images/rep-models-vs-gen-models.jpg){#fig:rep-vs-gen-models}
+
+The dataset we will use is the **Amazon Polarity Dataset**. This dataset contains reviews from Amazon, categorized as either positive or negative sentiment. Each entry consists of a title, the review text, and the associated sentiment label, making it an excellent dataset for training and evaluating sentiment classification models.
+
+```{python}
+#| label: Load data
+#| cache: true
+from datasets import load_dataset
+
+# Load our data
+data = load_dataset("amazon_polarity")
+
+# Take a random sample of 10k training examples and 2k test examples
+train_sample = data["train"].shuffle(seed=42).select(range(10000))
+test_sample = data["test"].shuffle(seed=42).select(range(2000))
+```
+
+```{python}
+#| cache: true
+# ## Value Counts for Labels in the Training Set
+# To better understand our dataset, let's count how many positive and negative labels we have in the training set.
+from collections import Counter
+
+# Count the number of occurrences of each label in the training and test data
+label_counts = Counter(train_sample["label"])
+print(f"Label Counts in Training Set: {label_counts}")
+label_counts = Counter(test_sample["label"])
+print(f"Label Counts in Test Set: {label_counts}")
+
+```
+
+```         
+Label Counts in Training Set: Counter({0: 5003, 1: 4997})
+```
+
+```{python}
+#| cache: true
+# Let's take a quick look at a couple of examples from our dataset to understand its structure.
+print(train_sample[0])
+print(train_sample[1])
+```
+
+# Text Classification with Representation-Based Models
+
+Now that we have an idea of what our data looks like, we can proceed to load a pre-trained Transformer model for text classification.
+
+We will use a model from the Hugging Face Transformers library, which provides state-of-the-art performance for various NLP tasks.
+
+```{python}
+#| cache: true
+#| label: Load representation model
+
+# Import the pipeline function from the transformers library
+from transformers import pipeline
+# import torch
+
+# Here, we use a sentiment analysis model from Hugging Face's model hub that is specifically designed for binary sentiment analysis.
+model_path = "distilbert-base-uncased-finetuned-sst-2-english"
+# model_path = "distilbert-base-uncased" 
+
+# Use GPU if available, otherwise fallback to CPU
+# device = 0 if torch.cuda.is_available() else -1
+
+# Load the model into a pipeline for easy inference
+pipe = pipeline(
+    model=model_path,
+    tokenizer=model_path,
+    # return_all_scores=True,
+    top_k=None,
+    device=-1
+)
+```
+
+```{python}
+print(pipe)
+```
+
+# Running Sentiment Analysis on Sample Data
+
+Let's use the loaded model to classify some sample reviews from our dataset.
+
+We'll run the model on a few reviews to see how well it predicts the sentiment.
+
+```{python}
+#| cache: true
+# Test with a basic string input
+result = pipe("I love this product! It's fantastic.")
+print(f"Sentiment Analysis Result: {result}")
+
+```
+
+```{python}
+#| cache: true
+# Run sentiment analysis on the first review
+# sample_review = data["train"][0]["content"]
+sample_review = train_sample[0]["content"]
+
+result = pipe(sample_review)
+print(f"Review: {sample_review}")
+print(f"Sentiment Analysis Result: {result}")
+```
+
+```         
+Review: This sound track was beautiful! It paints the senery in your mind so well I would recomend it even to people who hate vid. game music! I have played the game Chrono Cross but out of all of the games I have ever played it has the best music! It backs away from crude keyboarding and takes a fresher step with grate guitars and soulful orchestras. It would impress anyone who cares to listen! ^_^
+Sentiment Analysis Result: [[{'label': 'NEGATIVE', 'score': 0.0008272510604001582}, {'label': 'POSITIVE', 'score': 0.9991727471351624}]]
+```
+
+\# Evaluating the Model Performance
+
+```{python}
+#| cache: true
+#| label: Make predictions
+# Import necessary libraries
+import numpy as np
+from tqdm import tqdm
+from transformers.pipelines.pt_utils import KeyDataset  # Imports KeyDataset from transformers for efficient data loading
+
+# Run inference - This section performs the prediction process
+y_pred = []  # Initializes an empty list to store the predictions
+
+# Iterate through the test data using tqdm for a progress bar
+for output in tqdm(pipe(KeyDataset(test_sample, "content"), batch_size=8), total=len(test_sample)):
+    # Extract negative and positive sentiment scores from the pipeline's output
+    negative_score = output[0]["score"]
+    positive_score = output[1]["score"]
+    assignment = np.argmax([negative_score, positive_score])  # Determines the predicted class (0 for negative, 1 for positive)
+    y_pred.append(assignment)  # Appends the predicted class to the y_pred list
+
+# Display the first 10 predictions
+print(f"First 10 Predictions: {y_pred[:10]}")
+
+```
+
+```         
+100%|██████████| 2000/2000 [00:13<00:00, 144.93it/s]
+
+First 10 Predictions: [0, 0, 0, 0, 0, 1, 0, 1, 1, 1]
+```
+
+```{python}
+#| label: Evaluate
+#| cache: true
+#| eval: false
+#| warning: false
+from sklearn.metrics import classification_report
+# To evaluate the model's performance, we will create a classification report.
+
+# Extract true labels for the sampled data
+y_true = test_sample["label"]
+
+# Define a function to evaluate performance
+def evaluate_performance(y_true, y_pred):
+    """Create and print the classification report"""
+    performance = classification_report(
+        y_true, y_pred,
+        target_names=["Negative Review", "Positive Review"]
+    )
+    print(performance)
+
+# Evaluate the model performance
+evaluate_performance(y_true, y_pred)
+
+```
+
+# Classification Tasks That Leverage Embeddings
+
+```{python}
+#| label: Create embeddings
+#| eval: False
+#| cache: true
+from sentence_transformers import SentenceTransformer
+
+# Load model
+embedding_model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2', device="cpu")
+
+# Convert text to embeddings
+train_embeddings = embedding_model.encode(train_sample["content"], show_progress_bar=True)
+test_embeddings = embedding_model.encode(test_sample["content"], show_progress_bar=True)
+
+train_embeddings.shape
+```
+
+```{python}
+#| label: Run LR
+#| eval: False
+#| cache: true
+from sklearn.linear_model import LogisticRegression
+
+# Train a Logistic Regression on our train embeddings
+clf = LogisticRegression(random_state=42)
+clf.fit(train_embeddings, train_sample["label"])
+
+# Predict previously unseen instances
+y_pred_embeddings = clf.predict(test_embeddings)
+
+# Evaluate the performance of the embedding-based classification
+evaluate_performance(test_sample["label"], y_pred_embeddings)
+
+```
+
+# What if we don't use a classifier at all?
+
+Instead, we can average the embeddings per class and apply cosine similarity to predict which classes match the documents best:
+
+```{python}
+#| label: No classifier
+#| eval: False
+#| cache: true
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Average the embeddings of all documents in each target label
+df = pd.DataFrame(np.hstack([train_embeddings, np.array(train_sample["label"]).reshape(-1, 1)]))
+averaged_target_embeddings = df.groupby(768).mean().values
+
+# Find the best matching embeddings between evaluation documents and target embeddings
+sim_matrix = cosine_similarity(test_embeddings, averaged_target_embeddings)
+y_pred_no_classifier = np.argmax(sim_matrix, axis=1)
+
+# Evaluate the model
+evaluate_performance(test_sample["label"], y_pred_no_classifier)
+
+```
+
+# References

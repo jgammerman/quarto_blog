@@ -2,8 +2,11 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/first-post/quarto_test.html",
+      "/posts/first-post/Blog_post_on_text_classification.html",
       "/posts/post-with-code/index.html",
       "/posts/first-post/index.html",
+      "/posts/first-post/index-copy.html",
       "/posts/welcome/index.html"
     ]
   }

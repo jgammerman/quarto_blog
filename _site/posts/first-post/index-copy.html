@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="James Gammerman">
+<meta name="dcterms.date" content="2024-10-29">
+<meta name="description" content="TODO">
+
+<title>Text Classification with LLMs (part 1) – James Gammerman’s ML Blog</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">James Gammerman’s ML Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Text Classification with LLMs (part 1)</h1>
+                  <div>
+        <div class="description">
+          TODO
+        </div>
+      </div>
+                </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>James Gammerman </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">October 29, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>Hello! And welcome to my first blog post.</p>
+<p>I’m currently reading the excellent <a href="https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/">Hands-On Large Language Models</a> book by Jay Alammar and Maarten Grootendorst. In order to get the most out of these kinds of books, I find it’s best to take the code in them and then adapt it to new data. So in that spirit, I’m going to do my own version of Chapter 4 in the book, which is all about text classification.</p>
+<p>There are many different kinds of LLM. Broadly speaking we can put them into two categories:</p>
+<ul>
+<li>Representation LLMs</li>
+<li>Generative LLMs</li>
+</ul>
+<p><em>Representation models</em> focus on understanding and representing the meaning of text. They work by converting input text into an embedding (i.e.&nbsp;a dense vector representation) that captures its semantic information. The generated embeddings are then fed into a separate classifier to predict a class label. So you can think of it as a two-step process: firstly encode the text into a meaningful representation, then classify it. These models are encoder-only, and notable examples include BERT, RoBERTa and sentence-BERT.</p>
+<p><em>Generative models</em> focus on generating text. They are trained to predict the next word in a sequence, whicih is similar in style and content to the training data. They can be adapted for classification by providign them with a carefully designed prompt that guides them to generate a specific output corresponding to the class label. They are decoder-only or encoder-decoder models, and notable examples include the GPT family (including ChatGPT), Flan-T5 and the image generation model DALL-E.</p>
+<p>The difference between the two is shown in <span class="citation" data-cites="fig:rep-vs-gen-models">@fig:rep-vs-gen-models</span>.</p>
+<div id="fig:rep-vs-gen-models" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="images/rep-models-vs-gen-models.jpg" class="img-fluid figure-img"></p>
+<figcaption>Both representation and generative models can be used for classification, but they take different approaches</figcaption>
+</figure>
+</div>
+<p>The dataset we will use is the <strong>Amazon Polarity Dataset</strong>. This dataset contains reviews from Amazon, categorized as either positive or negative sentiment. Each entry consists of a title, the review text, and the associated sentiment label, making it an excellent dataset for training and evaluating sentiment classification models.</p>
+<div id="load-data" class="cell" data-cache="true" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datasets <span class="im">import</span> load_dataset</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load our data</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> load_dataset(<span class="st">"amazon_polarity"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Take a random sample of 10k training examples and 2k test examples</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>train_sample <span class="op">=</span> data[<span class="st">"train"</span>].shuffle(seed<span class="op">=</span><span class="dv">42</span>).select(<span class="bu">range</span>(<span class="dv">10000</span>))</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>test_sample <span class="op">=</span> data[<span class="st">"test"</span>].shuffle(seed<span class="op">=</span><span class="dv">42</span>).select(<span class="bu">range</span>(<span class="dv">2000</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="e783caf6" class="cell" data-cache="true" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ## Value Counts for Labels in the Training Set</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># To better understand our dataset, let's count how many positive and negative labels we have in the training set.</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> Counter</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Count the number of occurrences of each label in the training and test data</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>label_counts <span class="op">=</span> Counter(train_sample[<span class="st">"label"</span>])</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Label Counts in Training Set: </span><span class="sc">{</span>label_counts<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>label_counts <span class="op">=</span> Counter(test_sample[<span class="st">"label"</span>])</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Label Counts in Test Set: </span><span class="sc">{</span>label_counts<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Label Counts in Training Set: Counter({0: 5003, 1: 4997})
+Label Counts in Test Set: Counter({1: 1018, 0: 982})</code></pre>
+</div>
+</div>
+<pre><code>Label Counts in Training Set: Counter({0: 5003, 1: 4997})</code></pre>
+<div id="40947ab3" class="cell" data-cache="true" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Let's take a quick look at a couple of examples from our dataset to understand its structure.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(train_sample[<span class="dv">0</span>])</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(train_sample[<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>{'label': 0, 'title': 'Anyone who likes this better than the Pekinpah is a moron.', 'content': "All the pretty people in this film. Even the Rudy character played by Michael Madsen. This is adapted from a Jim Thompson novel for cryin' out loud! These are supposed to be marginal characters, not fashion models. Though McQueen and McGraw were attractive (but check out McQueen's crummy prison haircut) they were believable in the role. Baldwin and Bassinger seem like movie stars trying to act like hard cases. Action wise, the robbery scene in the Pekinpah version was about 100 times more exciting and suspenseful than anything in this re-make."}
+{'label': 0, 'title': 'Author seems mentally unstable', 'content': 'I know that Tom Robbins has a loyal following and I started the book with high expectations. However, I did not enjoy this book as it was too much work to follow his confused logic. I think that he was under the influence during most of time that he wrote.'}</code></pre>
+</div>
+</div>
+</section>
+<section id="text-classification-with-representation-based-models" class="level1">
+<h1>Text Classification with Representation-Based Models</h1>
+<p>Now that we have an idea of what our data looks like, we can proceed to load a pre-trained Transformer model for text classification.</p>
+<p>We will use a model from the Hugging Face Transformers library, which provides state-of-the-art performance for various NLP tasks.</p>
+<div id="load-representation-model" class="cell" data-cache="true" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Import the pipeline function from the transformers library</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers <span class="im">import</span> pipeline</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># import torch</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Here, we use a sentiment analysis model from Hugging Face's model hub that is specifically designed for binary sentiment analysis.</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>model_path <span class="op">=</span> <span class="st">"distilbert-base-uncased-finetuned-sst-2-english"</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># model_path = "distilbert-base-uncased" </span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Use GPU if available, otherwise fallback to CPU</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># device = 0 if torch.cuda.is_available() else -1</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the model into a pipeline for easy inference</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>pipe <span class="op">=</span> pipeline(</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model_path,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    tokenizer<span class="op">=</span>model_path,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># return_all_scores=True,</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    top_k<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    device<span class="op">=-</span><span class="dv">1</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="e80abd52" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(pipe)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;transformers.pipelines.text_classification.TextClassificationPipeline object at 0x1ba39b2e0&gt;</code></pre>
+</div>
+</div>
+</section>
+<section id="running-sentiment-analysis-on-sample-data" class="level1">
+<h1>Running Sentiment Analysis on Sample Data</h1>
+<p>Let’s use the loaded model to classify some sample reviews from our dataset.</p>
+<p>We’ll run the model on a few reviews to see how well it predicts the sentiment.</p>
+<div id="614d55b4" class="cell" data-cache="true" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Test with a basic string input</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> pipe(<span class="st">"I love this product! It's fantastic."</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Sentiment Analysis Result: </span><span class="sc">{</span>result<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Sentiment Analysis Result: [[{'label': 'POSITIVE', 'score': 0.9998825788497925}, {'label': 'NEGATIVE', 'score': 0.00011738832108676434}]]</code></pre>
+</div>
+</div>
+<div id="7221d9e6" class="cell" data-cache="true" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run sentiment analysis on the first review</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co"># sample_review = data["train"][0]["content"]</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>sample_review <span class="op">=</span> train_sample[<span class="dv">0</span>][<span class="st">"content"</span>]</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>result <span class="op">=</span> pipe(sample_review)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Review: </span><span class="sc">{</span>sample_review<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Sentiment Analysis Result: </span><span class="sc">{</span>result<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Review: All the pretty people in this film. Even the Rudy character played by Michael Madsen. This is adapted from a Jim Thompson novel for cryin' out loud! These are supposed to be marginal characters, not fashion models. Though McQueen and McGraw were attractive (but check out McQueen's crummy prison haircut) they were believable in the role. Baldwin and Bassinger seem like movie stars trying to act like hard cases. Action wise, the robbery scene in the Pekinpah version was about 100 times more exciting and suspenseful than anything in this re-make.
+Sentiment Analysis Result: [[{'label': 'POSITIVE', 'score': 0.9834295511245728}, {'label': 'NEGATIVE', 'score': 0.016570482403039932}]]</code></pre>
+</div>
+</div>
+<pre><code>Review: This sound track was beautiful! It paints the senery in your mind so well I would recomend it even to people who hate vid. game music! I have played the game Chrono Cross but out of all of the games I have ever played it has the best music! It backs away from crude keyboarding and takes a fresher step with grate guitars and soulful orchestras. It would impress anyone who cares to listen! ^_^
+Sentiment Analysis Result: [[{'label': 'NEGATIVE', 'score': 0.0008272510604001582}, {'label': 'POSITIVE', 'score': 0.9991727471351624}]]</code></pre>
+<p># Evaluating the Model Performance</p>
+<div id="make-predictions" class="cell" data-cache="true" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Import necessary libraries</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tqdm <span class="im">import</span> tqdm</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> transformers.pipelines.pt_utils <span class="im">import</span> KeyDataset  <span class="co"># Imports KeyDataset from transformers for efficient data loading</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Run inference - This section performs the prediction process</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>y_pred <span class="op">=</span> []  <span class="co"># Initializes an empty list to store the predictions</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Iterate through the test data using tqdm for a progress bar</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> output <span class="kw">in</span> tqdm(pipe(KeyDataset(test_sample, <span class="st">"content"</span>), batch_size<span class="op">=</span><span class="dv">8</span>), total<span class="op">=</span><span class="bu">len</span>(test_sample)):</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Extract negative and positive sentiment scores from the pipeline's output</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    negative_score <span class="op">=</span> output[<span class="dv">0</span>][<span class="st">"score"</span>]</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    positive_score <span class="op">=</span> output[<span class="dv">1</span>][<span class="st">"score"</span>]</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    assignment <span class="op">=</span> np.argmax([negative_score, positive_score])  <span class="co"># Determines the predicted class (0 for negative, 1 for positive)</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    y_pred.append(assignment)  <span class="co"># Appends the predicted class to the y_pred list</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the first 10 predictions</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"First 10 Predictions: </span><span class="sc">{</span>y_pred[:<span class="dv">10</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  0%|          | 0/2000 [00:00&lt;?, ?it/s]  0%|          | 1/2000 [00:00&lt;26:35,  1.25it/s]  0%|          | 9/2000 [00:01&lt;03:59,  8.30it/s]  1%|          | 17/2000 [00:01&lt;02:24, 13.72it/s]  1%|▏         | 25/2000 [00:01&lt;01:54, 17.19it/s]  2%|▏         | 33/2000 [00:02&lt;01:50, 17.87it/s]  2%|▏         | 41/2000 [00:02&lt;02:01, 16.12it/s]  2%|▏         | 49/2000 [00:03&lt;01:48, 17.95it/s]  3%|▎         | 57/2000 [00:03&lt;01:54, 16.91it/s]  3%|▎         | 65/2000 [00:04&lt;01:48, 17.75it/s]  4%|▎         | 73/2000 [00:04&lt;01:48, 17.75it/s]  4%|▍         | 81/2000 [00:05&lt;01:51, 17.28it/s]  4%|▍         | 89/2000 [00:05&lt;01:53, 16.91it/s]  5%|▍         | 97/2000 [00:06&lt;01:52, 16.90it/s]  5%|▌         | 105/2000 [00:06&lt;01:46, 17.83it/s]  6%|▌         | 113/2000 [00:07&lt;01:53, 16.69it/s]  6%|▌         | 121/2000 [00:07&lt;01:51, 16.92it/s]  6%|▋         | 129/2000 [00:07&lt;01:40, 18.63it/s]  7%|▋         | 137/2000 [00:08&lt;01:40, 18.57it/s]  7%|▋         | 145/2000 [00:08&lt;01:43, 17.84it/s]  8%|▊         | 153/2000 [00:09&lt;01:45, 17.52it/s]  8%|▊         | 161/2000 [00:09&lt;01:36, 19.05it/s]  8%|▊         | 169/2000 [00:09&lt;01:32, 19.72it/s]  9%|▉         | 177/2000 [00:10&lt;01:29, 20.32it/s]  9%|▉         | 185/2000 [00:10&lt;01:32, 19.53it/s] 10%|▉         | 193/2000 [00:11&lt;01:39, 18.08it/s] 10%|█         | 201/2000 [00:11&lt;01:41, 17.66it/s] 10%|█         | 209/2000 [00:12&lt;01:35, 18.82it/s] 11%|█         | 217/2000 [00:12&lt;01:32, 19.24it/s] 11%|█▏        | 225/2000 [00:12&lt;01:27, 20.36it/s] 12%|█▏        | 233/2000 [00:13&lt;01:25, 20.64it/s] 12%|█▏        | 241/2000 [00:13&lt;01:30, 19.47it/s] 12%|█▏        | 249/2000 [00:14&lt;01:37, 17.87it/s] 13%|█▎        | 257/2000 [00:14&lt;01:37, 17.93it/s] 13%|█▎        | 265/2000 [00:14&lt;01:30, 19.24it/s] 14%|█▎        | 273/2000 [00:15&lt;01:37, 17.72it/s] 14%|█▍        | 281/2000 [00:16&lt;01:42, 16.73it/s] 14%|█▍        | 289/2000 [00:16&lt;01:37, 17.49it/s] 15%|█▍        | 297/2000 [00:16&lt;01:27, 19.49it/s] 15%|█▌        | 305/2000 [00:17&lt;01:33, 18.11it/s] 16%|█▌        | 313/2000 [00:17&lt;01:36, 17.48it/s] 16%|█▌        | 321/2000 [00:18&lt;01:25, 19.70it/s] 16%|█▋        | 329/2000 [00:18&lt;01:24, 19.67it/s] 17%|█▋        | 337/2000 [00:18&lt;01:23, 19.84it/s] 17%|█▋        | 345/2000 [00:19&lt;01:22, 20.00it/s] 18%|█▊        | 353/2000 [00:19&lt;01:20, 20.57it/s] 18%|█▊        | 361/2000 [00:20&lt;01:38, 16.70it/s] 18%|█▊        | 369/2000 [00:20&lt;01:28, 18.34it/s] 19%|█▉        | 377/2000 [00:21&lt;01:28, 18.33it/s] 19%|█▉        | 385/2000 [00:21&lt;01:31, 17.58it/s] 20%|█▉        | 393/2000 [00:22&lt;01:38, 16.37it/s] 20%|██        | 401/2000 [00:22&lt;01:36, 16.61it/s] 20%|██        | 409/2000 [00:23&lt;01:36, 16.48it/s] 21%|██        | 417/2000 [00:23&lt;01:43, 15.33it/s] 21%|██▏       | 425/2000 [00:24&lt;01:41, 15.51it/s] 22%|██▏       | 433/2000 [00:24&lt;01:35, 16.44it/s] 22%|██▏       | 441/2000 [00:25&lt;01:28, 17.65it/s] 22%|██▏       | 449/2000 [00:25&lt;01:27, 17.70it/s] 23%|██▎       | 457/2000 [00:25&lt;01:29, 17.17it/s] 23%|██▎       | 465/2000 [00:26&lt;01:28, 17.25it/s] 24%|██▎       | 473/2000 [00:26&lt;01:34, 16.17it/s] 24%|██▍       | 481/2000 [00:27&lt;01:39, 15.25it/s] 24%|██▍       | 489/2000 [00:28&lt;01:46, 14.17it/s] 25%|██▍       | 497/2000 [00:28&lt;01:39, 15.05it/s] 25%|██▌       | 505/2000 [00:29&lt;01:39, 15.04it/s] 26%|██▌       | 513/2000 [00:29&lt;01:40, 14.78it/s] 26%|██▌       | 521/2000 [00:30&lt;01:38, 15.01it/s] 26%|██▋       | 529/2000 [00:31&lt;01:48, 13.60it/s] 27%|██▋       | 537/2000 [00:31&lt;01:53, 12.91it/s] 27%|██▋       | 545/2000 [00:32&lt;01:51, 13.09it/s] 28%|██▊       | 553/2000 [00:33&lt;02:00, 12.00it/s] 28%|██▊       | 561/2000 [00:33&lt;01:53, 12.62it/s] 28%|██▊       | 569/2000 [00:34&lt;02:03, 11.61it/s] 29%|██▉       | 577/2000 [00:35&lt;01:56, 12.17it/s] 29%|██▉       | 585/2000 [00:35&lt;01:48, 13.06it/s] 30%|██▉       | 593/2000 [00:36&lt;01:51, 12.67it/s] 30%|███       | 601/2000 [00:36&lt;01:50, 12.68it/s] 30%|███       | 609/2000 [00:37&lt;01:44, 13.35it/s] 31%|███       | 617/2000 [00:37&lt;01:43, 13.41it/s] 31%|███▏      | 625/2000 [00:38&lt;01:29, 15.40it/s] 32%|███▏      | 633/2000 [00:39&lt;01:37, 13.99it/s] 32%|███▏      | 641/2000 [00:39&lt;01:38, 13.78it/s] 32%|███▏      | 649/2000 [00:40&lt;01:52, 12.03it/s] 33%|███▎      | 657/2000 [00:41&lt;01:52, 11.96it/s] 33%|███▎      | 665/2000 [00:41&lt;01:48, 12.27it/s] 34%|███▎      | 673/2000 [00:42&lt;01:37, 13.59it/s] 34%|███▍      | 681/2000 [00:42&lt;01:34, 13.92it/s] 34%|███▍      | 689/2000 [00:43&lt;01:39, 13.17it/s] 35%|███▍      | 697/2000 [00:44&lt;01:43, 12.60it/s] 35%|███▌      | 705/2000 [00:44&lt;01:49, 11.80it/s] 36%|███▌      | 713/2000 [00:45&lt;01:48, 11.82it/s] 36%|███▌      | 721/2000 [00:46&lt;01:48, 11.81it/s] 36%|███▋      | 729/2000 [00:47&lt;01:50, 11.47it/s] 37%|███▋      | 737/2000 [00:47&lt;01:40, 12.53it/s] 37%|███▋      | 745/2000 [00:48&lt;01:35, 13.08it/s] 38%|███▊      | 753/2000 [00:48&lt;01:29, 13.87it/s] 38%|███▊      | 761/2000 [00:48&lt;01:17, 15.99it/s] 38%|███▊      | 769/2000 [00:49&lt;01:13, 16.79it/s] 39%|███▉      | 777/2000 [00:49&lt;01:05, 18.72it/s] 39%|███▉      | 785/2000 [00:50&lt;01:13, 16.44it/s] 40%|███▉      | 793/2000 [00:50&lt;01:05, 18.29it/s] 40%|████      | 801/2000 [00:51&lt;01:13, 16.33it/s] 40%|████      | 809/2000 [00:51&lt;01:09, 17.26it/s] 41%|████      | 817/2000 [00:52&lt;01:08, 17.23it/s] 41%|████▏     | 825/2000 [00:52&lt;01:13, 16.01it/s] 42%|████▏     | 833/2000 [00:52&lt;01:06, 17.65it/s] 42%|████▏     | 841/2000 [00:53&lt;01:07, 17.20it/s] 42%|████▏     | 849/2000 [00:54&lt;01:10, 16.40it/s] 43%|████▎     | 857/2000 [00:54&lt;01:05, 17.35it/s] 43%|████▎     | 865/2000 [00:54&lt;01:02, 18.06it/s] 44%|████▎     | 873/2000 [00:55&lt;01:05, 17.15it/s] 44%|████▍     | 881/2000 [00:56&lt;01:18, 14.19it/s] 44%|████▍     | 889/2000 [00:56&lt;01:07, 16.52it/s] 45%|████▍     | 897/2000 [00:56&lt;01:07, 16.36it/s] 45%|████▌     | 905/2000 [00:57&lt;01:05, 16.59it/s] 46%|████▌     | 913/2000 [00:57&lt;01:03, 17.24it/s] 46%|████▌     | 921/2000 [00:58&lt;01:04, 16.65it/s] 46%|████▋     | 929/2000 [00:58&lt;01:09, 15.36it/s] 47%|████▋     | 937/2000 [00:59&lt;01:05, 16.21it/s] 47%|████▋     | 945/2000 [01:00&lt;01:10, 14.89it/s] 48%|████▊     | 953/2000 [01:00&lt;01:10, 14.91it/s] 48%|████▊     | 961/2000 [01:01&lt;01:09, 15.04it/s] 48%|████▊     | 969/2000 [01:01&lt;01:05, 15.83it/s] 49%|████▉     | 977/2000 [01:01&lt;01:01, 16.67it/s] 49%|████▉     | 985/2000 [01:02&lt;01:02, 16.14it/s] 50%|████▉     | 993/2000 [01:03&lt;01:06, 15.14it/s] 50%|█████     | 1001/2000 [01:03&lt;01:06, 14.92it/s] 50%|█████     | 1009/2000 [01:04&lt;01:05, 15.24it/s] 51%|█████     | 1017/2000 [01:04&lt;01:02, 15.75it/s] 51%|█████▏    | 1025/2000 [01:05&lt;01:04, 15.05it/s] 52%|█████▏    | 1033/2000 [01:05&lt;01:05, 14.86it/s] 52%|█████▏    | 1041/2000 [01:06&lt;00:57, 16.54it/s] 52%|█████▏    | 1049/2000 [01:06&lt;01:01, 15.47it/s] 53%|█████▎    | 1057/2000 [01:07&lt;01:09, 13.53it/s] 53%|█████▎    | 1065/2000 [01:07&lt;01:03, 14.61it/s] 54%|█████▎    | 1073/2000 [01:08&lt;00:55, 16.68it/s] 54%|█████▍    | 1081/2000 [01:08&lt;00:56, 16.16it/s] 54%|█████▍    | 1089/2000 [01:09&lt;00:54, 16.79it/s] 55%|█████▍    | 1097/2000 [01:09&lt;01:01, 14.63it/s] 55%|█████▌    | 1105/2000 [01:10&lt;00:55, 16.03it/s] 56%|█████▌    | 1113/2000 [01:10&lt;00:51, 17.32it/s] 56%|█████▌    | 1121/2000 [01:11&lt;00:53, 16.52it/s] 56%|█████▋    | 1129/2000 [01:11&lt;00:50, 17.41it/s] 57%|█████▋    | 1137/2000 [01:12&lt;00:48, 17.74it/s] 57%|█████▋    | 1145/2000 [01:12&lt;00:47, 17.95it/s] 58%|█████▊    | 1153/2000 [01:12&lt;00:46, 18.21it/s] 58%|█████▊    | 1161/2000 [01:13&lt;00:49, 16.80it/s] 58%|█████▊    | 1169/2000 [01:13&lt;00:46, 17.69it/s] 59%|█████▉    | 1177/2000 [01:14&lt;00:45, 17.93it/s] 59%|█████▉    | 1185/2000 [01:14&lt;00:46, 17.43it/s] 60%|█████▉    | 1193/2000 [01:15&lt;00:49, 16.22it/s] 60%|██████    | 1201/2000 [01:15&lt;00:50, 15.93it/s] 60%|██████    | 1209/2000 [01:16&lt;00:51, 15.38it/s] 61%|██████    | 1217/2000 [01:16&lt;00:44, 17.71it/s] 61%|██████▏   | 1225/2000 [01:17&lt;00:44, 17.43it/s] 62%|██████▏   | 1233/2000 [01:17&lt;00:45, 16.94it/s] 62%|██████▏   | 1241/2000 [01:18&lt;00:47, 15.94it/s] 62%|██████▏   | 1249/2000 [01:18&lt;00:45, 16.49it/s] 63%|██████▎   | 1257/2000 [01:19&lt;00:46, 16.00it/s] 63%|██████▎   | 1265/2000 [01:19&lt;00:43, 16.88it/s] 64%|██████▎   | 1273/2000 [01:20&lt;00:44, 16.42it/s] 64%|██████▍   | 1281/2000 [01:20&lt;00:44, 16.26it/s] 64%|██████▍   | 1289/2000 [01:21&lt;00:48, 14.68it/s] 65%|██████▍   | 1297/2000 [01:21&lt;00:42, 16.56it/s] 65%|██████▌   | 1305/2000 [01:22&lt;00:39, 17.66it/s] 66%|██████▌   | 1313/2000 [01:22&lt;00:38, 18.04it/s] 66%|██████▌   | 1321/2000 [01:23&lt;00:41, 16.48it/s] 66%|██████▋   | 1329/2000 [01:23&lt;00:38, 17.52it/s] 67%|██████▋   | 1337/2000 [01:23&lt;00:38, 17.35it/s] 67%|██████▋   | 1345/2000 [01:24&lt;00:32, 20.05it/s] 68%|██████▊   | 1353/2000 [01:24&lt;00:34, 19.02it/s] 68%|██████▊   | 1361/2000 [01:25&lt;00:35, 18.11it/s] 68%|██████▊   | 1369/2000 [01:25&lt;00:34, 18.17it/s] 69%|██████▉   | 1377/2000 [01:26&lt;00:34, 18.25it/s] 69%|██████▉   | 1385/2000 [01:26&lt;00:38, 16.01it/s] 70%|██████▉   | 1393/2000 [01:27&lt;00:36, 16.78it/s] 70%|███████   | 1401/2000 [01:27&lt;00:32, 18.44it/s] 70%|███████   | 1409/2000 [01:27&lt;00:35, 16.77it/s] 71%|███████   | 1417/2000 [01:28&lt;00:33, 17.24it/s] 71%|███████▏  | 1425/2000 [01:28&lt;00:33, 16.97it/s] 72%|███████▏  | 1433/2000 [01:29&lt;00:35, 16.10it/s] 72%|███████▏  | 1441/2000 [01:29&lt;00:34, 16.15it/s] 72%|███████▏  | 1449/2000 [01:30&lt;00:37, 14.86it/s] 73%|███████▎  | 1457/2000 [01:31&lt;00:35, 15.34it/s] 73%|███████▎  | 1465/2000 [01:31&lt;00:32, 16.68it/s] 74%|███████▎  | 1473/2000 [01:32&lt;00:32, 16.00it/s] 74%|███████▍  | 1481/2000 [01:32&lt;00:31, 16.50it/s] 74%|███████▍  | 1489/2000 [01:32&lt;00:29, 17.05it/s] 75%|███████▍  | 1497/2000 [01:33&lt;00:29, 17.19it/s] 75%|███████▌  | 1505/2000 [01:33&lt;00:28, 17.27it/s] 76%|███████▌  | 1513/2000 [01:34&lt;00:29, 16.49it/s] 76%|███████▌  | 1521/2000 [01:34&lt;00:29, 16.49it/s] 76%|███████▋  | 1529/2000 [01:35&lt;00:30, 15.54it/s] 77%|███████▋  | 1537/2000 [01:35&lt;00:28, 16.29it/s] 77%|███████▋  | 1545/2000 [01:36&lt;00:27, 16.48it/s] 78%|███████▊  | 1553/2000 [01:36&lt;00:25, 17.28it/s] 78%|███████▊  | 1561/2000 [01:37&lt;00:25, 16.99it/s] 78%|███████▊  | 1569/2000 [01:37&lt;00:26, 16.50it/s] 79%|███████▉  | 1577/2000 [01:38&lt;00:25, 16.82it/s] 79%|███████▉  | 1585/2000 [01:38&lt;00:27, 15.00it/s] 80%|███████▉  | 1593/2000 [01:39&lt;00:26, 15.15it/s] 80%|████████  | 1601/2000 [01:39&lt;00:26, 14.98it/s] 80%|████████  | 1609/2000 [01:40&lt;00:28, 13.61it/s] 81%|████████  | 1617/2000 [01:41&lt;00:27, 13.98it/s] 81%|████████▏ | 1625/2000 [01:41&lt;00:25, 14.86it/s] 82%|████████▏ | 1633/2000 [01:42&lt;00:25, 14.61it/s] 82%|████████▏ | 1641/2000 [01:42&lt;00:24, 14.80it/s] 82%|████████▏ | 1649/2000 [01:43&lt;00:21, 16.65it/s] 83%|████████▎ | 1657/2000 [01:43&lt;00:19, 17.20it/s] 83%|████████▎ | 1665/2000 [01:43&lt;00:19, 17.54it/s] 84%|████████▎ | 1673/2000 [01:44&lt;00:16, 19.84it/s] 84%|████████▍ | 1681/2000 [01:44&lt;00:15, 20.60it/s] 84%|████████▍ | 1689/2000 [01:45&lt;00:16, 19.05it/s] 85%|████████▍ | 1697/2000 [01:45&lt;00:18, 16.53it/s] 85%|████████▌ | 1705/2000 [01:46&lt;00:17, 16.58it/s] 86%|████████▌ | 1713/2000 [01:46&lt;00:17, 16.34it/s] 86%|████████▌ | 1721/2000 [01:47&lt;00:19, 14.50it/s] 86%|████████▋ | 1729/2000 [01:47&lt;00:17, 15.22it/s] 87%|████████▋ | 1737/2000 [01:48&lt;00:17, 14.64it/s] 87%|████████▋ | 1745/2000 [01:48&lt;00:16, 15.13it/s] 88%|████████▊ | 1753/2000 [01:49&lt;00:16, 15.16it/s] 88%|████████▊ | 1761/2000 [01:50&lt;00:15, 14.96it/s] 88%|████████▊ | 1769/2000 [01:50&lt;00:14, 15.80it/s] 89%|████████▉ | 1777/2000 [01:50&lt;00:13, 16.54it/s] 89%|████████▉ | 1785/2000 [01:51&lt;00:12, 17.12it/s] 90%|████████▉ | 1793/2000 [01:51&lt;00:11, 17.50it/s] 90%|█████████ | 1801/2000 [01:52&lt;00:12, 16.52it/s] 90%|█████████ | 1809/2000 [01:52&lt;00:11, 17.06it/s] 91%|█████████ | 1817/2000 [01:53&lt;00:10, 16.90it/s] 91%|█████████▏| 1825/2000 [01:53&lt;00:09, 17.74it/s] 92%|█████████▏| 1833/2000 [01:54&lt;00:10, 16.09it/s] 92%|█████████▏| 1841/2000 [01:54&lt;00:09, 16.91it/s] 92%|█████████▏| 1849/2000 [01:55&lt;00:08, 17.02it/s] 93%|█████████▎| 1857/2000 [01:55&lt;00:08, 16.40it/s] 93%|█████████▎| 1865/2000 [01:56&lt;00:08, 15.94it/s] 94%|█████████▎| 1873/2000 [01:56&lt;00:07, 17.66it/s] 94%|█████████▍| 1881/2000 [01:56&lt;00:06, 19.24it/s] 94%|█████████▍| 1889/2000 [01:57&lt;00:06, 17.50it/s] 95%|█████████▍| 1897/2000 [01:57&lt;00:05, 17.74it/s] 95%|█████████▌| 1905/2000 [01:58&lt;00:05, 17.18it/s] 96%|█████████▌| 1913/2000 [01:58&lt;00:05, 15.81it/s] 96%|█████████▌| 1921/2000 [01:59&lt;00:05, 13.82it/s] 96%|█████████▋| 1929/2000 [02:00&lt;00:05, 14.03it/s] 97%|█████████▋| 1937/2000 [02:00&lt;00:04, 13.95it/s] 97%|█████████▋| 1945/2000 [02:01&lt;00:03, 14.42it/s] 98%|█████████▊| 1953/2000 [02:01&lt;00:02, 16.65it/s] 98%|█████████▊| 1961/2000 [02:02&lt;00:02, 16.19it/s] 98%|█████████▊| 1969/2000 [02:02&lt;00:01, 17.42it/s] 99%|█████████▉| 1977/2000 [02:03&lt;00:01, 15.81it/s] 99%|█████████▉| 1985/2000 [02:03&lt;00:00, 18.45it/s]100%|█████████▉| 1993/2000 [02:03&lt;00:00, 17.57it/s]100%|██████████| 2000/2000 [02:03&lt;00:00, 16.14it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>First 10 Predictions: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code></code></pre>
+</div>
+</div>
+<pre><code>100%|██████████| 2000/2000 [00:13&lt;00:00, 144.93it/s]
+
+First 10 Predictions: [0, 0, 0, 0, 0, 1, 0, 1, 1, 1]</code></pre>
+<div id="evaluate" class="cell" data-cache="true" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> classification_report</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co"># To evaluate the model's performance, we will create a classification report.</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract true labels for the sampled data</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>y_true <span class="op">=</span> test_sample[<span class="st">"label"</span>]</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Define a function to evaluate performance</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> evaluate_performance(y_true, y_pred):</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Create and print the classification report"""</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    performance <span class="op">=</span> classification_report(</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>        y_true, y_pred,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>        target_names<span class="op">=</span>[<span class="st">"Negative Review"</span>, <span class="st">"Positive Review"</span>]</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(performance)</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Evaluate the model performance</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>evaluate_performance(y_true, y_pred)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="classification-tasks-that-leverage-embeddings" class="level1">
+<h1>Classification Tasks That Leverage Embeddings</h1>
+<div id="create-embeddings" class="cell" data-cache="true" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sentence_transformers <span class="im">import</span> SentenceTransformer</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Load model</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>embedding_model <span class="op">=</span> SentenceTransformer(<span class="st">'sentence-transformers/all-mpnet-base-v2'</span>, device<span class="op">=</span><span class="st">"cpu"</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert text to embeddings</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>train_embeddings <span class="op">=</span> embedding_model.encode(train_sample[<span class="st">"content"</span>], show_progress_bar<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>test_embeddings <span class="op">=</span> embedding_model.encode(test_sample[<span class="st">"content"</span>], show_progress_bar<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>train_embeddings.shape</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="run-lr" class="cell" data-cache="true" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LogisticRegression</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Train a Logistic Regression on our train embeddings</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>clf <span class="op">=</span> LogisticRegression(random_state<span class="op">=</span><span class="dv">42</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>clf.fit(train_embeddings, train_sample[<span class="st">"label"</span>])</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict previously unseen instances</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>y_pred_embeddings <span class="op">=</span> clf.predict(test_embeddings)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Evaluate the performance of the embedding-based classification</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>evaluate_performance(test_sample[<span class="st">"label"</span>], y_pred_embeddings)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="what-if-we-dont-use-a-classifier-at-all" class="level1">
+<h1>What if we don’t use a classifier at all?</h1>
+<p>Instead, we can average the embeddings per class and apply cosine similarity to predict which classes match the documents best:</p>
+<div id="no-classifier" class="cell" data-cache="true" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics.pairwise <span class="im">import</span> cosine_similarity</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Average the embeddings of all documents in each target label</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.DataFrame(np.hstack([train_embeddings, np.array(train_sample[<span class="st">"label"</span>]).reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)]))</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>averaged_target_embeddings <span class="op">=</span> df.groupby(<span class="dv">768</span>).mean().values</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Find the best matching embeddings between evaluation documents and target embeddings</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>sim_matrix <span class="op">=</span> cosine_similarity(test_embeddings, averaged_target_embeddings)</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>y_pred_no_classifier <span class="op">=</span> np.argmax(sim_matrix, axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Evaluate the model</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>evaluate_performance(test_sample[<span class="st">"label"</span>], y_pred_no_classifier)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="references" class="level1">
+<h1>References</h1>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
