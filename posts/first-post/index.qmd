@@ -1,6 +1,6 @@
 ---
 title: "Text Classification with LLMs (part 1)"
-description: "TODO"
+description: "Latest"
 author: "James Gammerman"
 date: "10/29/2024"
 draft: false
@@ -55,6 +55,7 @@ We start by loading the data and splitting into a training and test set (no need
 ```{python}
 #| label: Load data
 #| cache: true
+#| output: false
 from datasets import load_dataset
 
 # Load our data
@@ -75,6 +76,7 @@ from collections import Counter
 # Count the number of occurrences of each label in the training and test data
 label_counts = Counter(train_sample["label"])
 print(f"Label Counts in Training Set: {label_counts}")
+print()
 label_counts = Counter(test_sample["label"])
 print(f"Label Counts in Test Set: {label_counts}")
 
@@ -87,12 +89,9 @@ Let's take a quick look at a couple of examples to understand the structure of t
 ```{python}
 #| cache: true
 
-# import json
-# print(json.dumps(train_sample[0], indent=4))
-# print(json.dumps(train_sample[5], indent=4))
-
-print(train_sample[0])
-print(train_sample[2])
+import json
+print(json.dumps(train_sample[0], indent=4))
+print(json.dumps(train_sample[2], indent=4))
 ```
 
 So each review is a dictionary containing a `label`, `title` and `content` key.
@@ -110,7 +109,7 @@ As mentioned earlier, BERT is a popular architecture for creating both task-spec
 Now that we've picked our task-specific representation model, we can proceed by loading the model:
 
 ```{python}
-#| eval: false
+#| eval: true
 #| cache: true
 #| label: Load model
 
@@ -126,13 +125,14 @@ pipe = pipeline(
     tokenizer=model_path,
     # return_all_scores=True,
     top_k=None,
-    device="cuda:0" # change this to "-1" if you only have access to a CPU not GPU
+    # device="-1"
+    # device="cuda:0" # change this to "-1" if you only have access to a CPU not GPU
 )
 ```
 
 ## Testing the model out
 
-Let's use our pre-trained BERT-based model to classify some sample reviews from our dataset. We'll run it on a couple to see how well it predicts the sentiment:
+Let's use our pre-trained BERT-based model to classify some sample reviews from our dataset. We'll run it on an example to see how well it predicts the sentiment:
 
 ```{python}
 #| eval: false
@@ -144,7 +144,116 @@ print(f"Review: {sample_review}")
 print(f"Sentiment Analysis Result: {result}")
 ```
 
-![](images/1.jpg)
+```{python}
+#| eval: false
+#| cache: true
+sample_review = train_sample[8]["content"]
+
+result = pipe(sample_review)
+
+# Split the review into lines with a maximum width
+import textwrap
+wrapped_review = textwrap.fill(sample_review, width=80) 
+
+print(f"Review:\n{wrapped_review}")
+
+# Format the sentiment analysis result with indentation
+import json
+print(f"Sentiment Analysis Result:\n{json.dumps(result, indent=2)}")
+```
+
+Looks good! Now we can run it on the full test set.
+
+## Evaluation
+
+```{python}
+#| eval: false
+#| cache: true
+import numpy as np
+from tqdm import tqdm
+from transformers.pipelines.pt_utils import KeyDataset  # for efficient data loading
+
+# Empty list to store predictions
+y_pred = []
+
+# Iterate through the test data and make predictions
+for output in tqdm(pipe(KeyDataset(test_sample, "content"), batch_size=8), total=len(test_sample)):
+    # Extract negative and positive sentiment scores from the pipeline's output
+    negative_score = output[0]["score"]
+    positive_score = output[1]["score"]
+    assignment = np.argmax([negative_score, positive_score])  # Determines the predicted class
+    y_pred.append(assignment)  
+
+# Display the first 10 predictions
+print(f"First 10 Predictions: {y_pred[:10]}")
+
+```
+
+So we've got our predictions for the test set. Let's create a classification report which we can use for evaluation:
+
+```{python}
+#| eval: false
+#| cache: true
+from sklearn.metrics import classification_report
+
+# Extract true labels for the sampled data
+y_true = test_sample["label"]
+
+# Define a function to evaluate performance
+def evaluate_performance(y_true, y_pred):
+    """Create and print the classification report"""
+    performance = classification_report(
+        y_true, y_pred,
+        target_names=["Negative Review", "Positive Review"]
+    )
+    print(performance)
+
+# Evaluate the model performance
+evaluate_performance(y_true, y_pred)
+```
+
+![test caption](images/classification_rep.jpg){}
+
+Looks like our model did a good job! An accuracy of 88\% is pretty impressive given that our pretrained BERT model wasn't trained specifically on our Amazon reviews data 😊
+
+Note that the labels in this data are well-balanced, so accuracy is a good metric to use. If they were imbalanced we might focus more on precision/recall/f1-score, which also have high values in this instance.
+
+So we've tried out a task-specific representation model. Now we can test the other kind of representation model: embedding models.
+
+# 2. Embedding model
+
+In the last section, we used a pre-trained task-specific model for classifying sentiment. But what if we don't have a model to hand which was pre-trained for our specific task?
+
+Fortunately we don't need to fine-tune a model ourselves, which can be very expensive. Instead of using a representation model directly, in this section we will use an embedding model to create features from our text. These features can then be used by a separate classifier to predict sentiment. So in a sense, we'll be doing a part of the training ourselves.
+
+We'll do it in two steps. Firstly, we'll change our foundation model from being based on the BERT architecture to one based on the MPNet architecture, which is an improved version of BERT addressing some of its limitations. The specific model we'll use is called `all-mpnet-base-v2`, and to access it we'll use the Sentence Transformers library:
+
+```{python}
+#| eval: false
+#| cache: true
+from sentence_transformers import SentenceTransformer
+
+# Load model - all-mpnet-base-v2
+embedding_model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+
+# Alternative - load a BERT-based model
+# model_name = 'bert-base-uncased'
+# embedding_model = SentenceTransformer(model_name)
+
+# Convert text to embeddings
+train_embeddings = embedding_model.encode(train_sample["content"], show_progress_bar=True)
+test_embeddings = embedding_model.encode(test_sample["content"], show_progress_bar=True)
+```
+
+Let's look at the dimensions of our new embedding:
+
+```{python}
+#| eval: false
+#| cache: true
+train_embeddings.shape
+```
+
+![test caption](images/embedding_shape.jpg){}
 
 Blah blah
 
